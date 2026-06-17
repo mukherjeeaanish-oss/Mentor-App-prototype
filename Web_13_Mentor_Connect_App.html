@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina Connect | AI Mentorship System</title>
+    <style>
+        /* Enterprise Theme Variables */
+        :root {
+            --bg-deep: #0a1120;
+            --bg-panel: #111827;
+            --bg-hover: #1f2937;
+            --primary: #8b5cf6; /* Shifted to a modern purple/violet */
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --sidebar-width: 280px;
+            --bottom-nav-height: 65px;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            font-family: var(--font-family);
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            height: 100vh; overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        /* --- Global Utility Classes --- */
+        .hidden { display: none !important; }
+        .glass { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 10px 20px;
+            border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn:hover { background: #7c3aed; box-shadow: 0 0 15px var(--primary-glow); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+
+        /* --- View 1: Auth Screen --- */
+        #auth-view {
+            height: 100vh; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: radial-gradient(circle at top, #111827 0%, var(--bg-deep) 100%);
+        }
+        .brand-logo { margin-bottom: 2rem; text-align: center; }
+        .brand-logo svg { width: 56px; height: 56px; color: var(--primary); margin-bottom: 1rem; }
+        .brand-logo h1 { font-size: 2.2rem; margin: 0; letter-spacing: -0.5px; }
+
+        #role-selection { display: flex; flex-direction: column; gap: 1rem; width: 100%; max-width: 320px; }
+        .role-btn {
+            background: var(--bg-panel); border: 1px solid var(--border); padding: 1rem;
+            border-radius: 30px; color: white; cursor: pointer; transition: 0.2s; font-size: 1rem; font-weight: 500;
+        }
+        .role-btn:hover { border-color: var(--primary); background: rgba(139, 92, 246, 0.1); }
+
+        #login-form-container { width: 100%; max-width: 380px; }
+        .auth-card {
+            background: var(--bg-panel); padding: 2rem; border-radius: 16px;
+            border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .auth-tab {
+            flex: 1; padding: 10px; text-align: center; cursor: pointer; color: var(--text-muted);
+            border-bottom: 2px solid transparent; font-weight: 500; transition: 0.2s;
+        }
+        .auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        
+        .input-group { margin-bottom: 1.2rem; position: relative; }
+        .input-group input {
+            width: 100%; padding: 12px 12px 12px 40px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg-deep);
+            color: white; box-sizing: border-box; outline: none; transition: 0.2s;
+        }
+        .input-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); }
+        .input-group svg { position: absolute; left: 12px; top: 12px; width: 20px; color: var(--text-muted); }
+
+        /* --- View 2: Main Application --- */
+        #app-view { display: none; height: 100vh; width: 100vw; flex-direction: column; }
+
+        .topbar {
+            height: 64px; background: var(--bg-panel); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; z-index: 50;
+        }
+        .top-left { display: flex; align-items: center; gap: 1rem; }
+        .menu-toggle { background: transparent; border: none; color: white; cursor: pointer; padding: 8px; }
+        
+        .top-right { display: flex; align-items: center; gap: 1rem; }
+        .lang-select {
+            background: var(--bg-deep); color: white; border: 1px solid var(--border);
+            padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer;
+        }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .app-body { display: flex; flex: 1; overflow: hidden; position: relative; }
+        .sidebar-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 90; display: none;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        .sidebar {
+            width: var(--sidebar-width); background: var(--bg-panel); border-right: 1px solid var(--border);
+            position: absolute; top: 0; bottom: 0; left: -100%; transition: left 0.3s ease;
+            z-index: 100; display: flex; flex-direction: column;
+        }
+        .sidebar.open { left: 0; }
+        
+        .sidebar-profile { padding: 1.5rem; border-bottom: 1px solid var(--border); }
+        .sidebar-profile h3 { margin: 0 0 4px 0; font-size: 1.1rem; }
+        .sidebar-profile p { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+        .verified-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--accent); margin-top: 8px; padding: 2px 8px; background: rgba(16, 185, 129, 0.1); border-radius: 12px; border: 1px solid var(--accent); }
+
+        .nav-menu { flex: 1; overflow-y: auto; padding: 1rem 0; }
+        .nav-item {
+            padding: 12px 1.5rem; display: flex; align-items: center; gap: 12px;
+            color: var(--text-muted); cursor: pointer; transition: 0.2s; border-left: 3px solid transparent;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.03); color: white; border-left-color: var(--primary);
+        }
+
+        .main-content {
+            flex: 1; padding: 2rem; overflow-y: auto;
+            padding-bottom: calc(var(--bottom-nav-height) + 2rem);
+        }
+        
+        .tab-pane { display: none; animation: fadeIn 0.3s ease; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dashboard specific */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--bg-panel); border: 1px solid var(--border); padding: 1.5rem; border-radius: 12px; text-align: center; }
+        .stat-card h2 { margin: 0; font-size: 2rem; color: var(--primary); }
+        .stat-card p { margin: 5px 0 0 0; color: var(--text-muted); }
+
+        /* Interactive Dropdowns */
+        .action-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .action-container { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .action-header {
+            padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .action-header:hover { background: var(--bg-hover); }
+        .action-header svg.chevron { transition: transform 0.3s ease; }
+        .action-header.open svg.chevron { transform: rotate(180deg); }
+        .action-body {
+            max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, padding 0.3s ease;
+            background: var(--bg-deep); border-top: 1px solid transparent;
+        }
+        .action-header.open + .action-body {
+            max-height: 300px; padding: 1rem; border-top-color: var(--border);
+        }
+        .list-item { padding: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.9rem; }
+        .list-item:last-child { border-bottom: none; }
+
+        /* Certificate Widget */
+        .cert-widget { display: flex; flex-direction: column; gap: 1.5rem; max-width: 600px; margin: 0 auto; }
+        .cert-preview {
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); color: #0f172a;
+            padding: 3rem 2rem; border-radius: 12px; text-align: center;
+            border: 8px solid #cbd5e1; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative;
+        }
+        .cert-preview::after {
+            content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border: 1px solid #94a3b8; pointer-events: none;
+        }
+        .cert-preview h2 { font-family: 'Georgia', serif; font-size: 1.8rem; color: #1e293b; margin-top: 0; text-transform: uppercase; letter-spacing: 2px;}
+        .cert-preview h3 { font-size: 2rem; color: var(--primary); margin: 1rem 0; font-family: 'Georgia', serif; font-style: italic;}
+        .progress-bar-container { background: var(--bg-deep); border-radius: 10px; padding: 3px; border: 1px solid var(--border); margin: 1rem 0;}
+        .progress-bar { height: 10px; background: var(--primary); border-radius: 8px; width: 66%; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px;
+            padding: 2rem; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .modal-icon { color: var(--accent); width: 48px; height: 48px; margin-bottom: 1rem; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute; bottom: 0; left: 0; right: 0; height: var(--bottom-nav-height);
+            background: var(--bg-panel); border-top: 1px solid var(--border);
+            display: flex; justify-content: space-around; align-items: center; z-index: 40;
+        }
+        .b-nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; flex: 1; height: 100%; transition: 0.2s;
+        }
+        .b-nav-item svg { width: 24px; height: 24px; margin-bottom: 4px; }
+        .b-nav-item span { font-size: 0.7rem; }
+        .b-nav-item.active { color: var(--primary); }
+
+    </style>
+</head>
+<body>
+
+    <div id="auth-view">
+        <div class="brand-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+                <line x1="12" y1="22" x2="12" y2="15.5"></line>
+                <polyline points="22 8.5 12 15.5 2 8.5"></polyline>
+                <polyline points="2 15.5 12 8.5 22 15.5"></polyline>
+                <line x1="12" y1="2" x2="12" y2="8.5"></line>
+            </svg>
+            <h1 data-i18n="app_title">Lumina Connect</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;" data-i18n="auth_subtitle">Secure Access & Verification</p>
+        </div>
+
+        <div id="role-selection">
+            <button class="role-btn" onclick="showLoginForm()" data-i18n="continue_student">Continue as Student</button>
+            <button class="role-btn" onclick="showLoginForm()" data-i18n="continue_mentor">Continue as Mentor</button>
+        </div>
+
+        <div id="login-form-container" class="hidden auth-card">
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchAuthTab('login')" id="tab-login" data-i18n="login">Login</div>
+                <div class="auth-tab" onclick="switchAuthTab('signup')" id="tab-signup" data-i18n="signup">Sign Up</div>
+            </div>
+            <form id="auth-form" onsubmit="handleAuth(event)">
+                <div id="name-field" class="input-group hidden">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    <input type="text" id="fullname" data-i18n-placeholder="fullname_placeholder" placeholder="Full Name">
+                </div>
+                <div class="input-group">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <input type="email" id="email" required data-i18n-placeholder="email_placeholder" placeholder="Email">
+                </div>
+                <div class="input-group">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <input type="password" id="password" required data-i18n-placeholder="password_placeholder" placeholder="Password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;" id="auth-submit-btn" data-i18n="login">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-view">
+        <header class="topbar">
+            <div class="top-left">
+                <button class="menu-toggle" onclick="toggleSidebar()">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <h2 style="margin: 0; font-size: 1.2rem; font-weight: 600;" id="header-title" data-i18n="dashboard">Dashboard</h2>
+            </div>
+            <div class="top-right">
+                <select class="lang-select" id="lang-select" onchange="changeLanguage()">
+                    <option value="en">English</option>
+                    <option value="ta">தமிழ் (Tamil)</option>
+                    <option value="hi">हिन्दी (Hindi)</option>
+                    <option value="te">తెలుగు (Telugu)</option>
+                </select>
+                <div class="user-avatar">AM</div>
+            </div>
+        </header>
+
+        <div class="app-body">
+            <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-profile">
+                    <h3>Aanish Mukherjee</h3>
+                    <p>aanish.m@srm.edu.in</p>
+                    <div class="verified-badge">
+                        <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        <span data-i18n="verified_student">KYC Verified Student</span>
+                    </div>
+                </div>
+                <nav class="nav-menu">
+                    <div class="nav-item active" onclick="navigate('home'); toggleSidebar()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                        <span data-i18n="dashboard">Dashboard</span>
+                    </div>
+                    <div class="nav-item" onclick="navigate('directory'); toggleSidebar()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span data-i18n="find_mentors">Find Mentors (Clones)</span>
+                    </div>
+                    <div class="nav-item" onclick="navigate('certs'); toggleSidebar()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                        <span data-i18n="certs">Certs/VR</span>
+                    </div>
+                    <div class="nav-item" onclick="logout()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        <span data-i18n="logout">Secure Logout</span>
+                    </div>
+                </nav>
+            </aside>
+
+            <main class="main-content">
+                <div id="tab-home" class="tab-pane active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h2>12</h2>
+                            <p data-i18n="active_mentors">Active Mentors</p>
+                        </div>
+                        <div class="stat-card">
+                            <h2>3</h2>
+                            <p data-i18n="upcoming_sessions">Upcoming Sessions</p>
+                        </div>
+                        <div class="stat-card">
+                            <h2>450</h2>
+                            <p data-i18n="reward_points">Reward Points</p>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-bottom: 1rem;" data-i18n="quick_actions">Quick Actions</h3>
+                    
+                    <div class="action-list">
+                        <div class="action-container">
+                            <div class="action-header" onclick="toggleAccordion(this)">
+                                <div style="display:flex; align-items:center; gap: 10px;">
+                                    <svg width="20" fill="none" stroke="var(--primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    <span data-i18n="view_scheduled">View Scheduled Sessions</span>
+                                </div>
+                                <svg class="chevron" width="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="action-body">
+                                <div class="list-item">
+                                    <span>AI Ethics & Compliance</span>
+                                    <span style="color: var(--text-muted)">Tomorrow, 10:00 AM</span>
+                                </div>
+                                <div class="list-item">
+                                    <span>DSA Algorithm Review</span>
+                                    <span style="color: var(--text-muted)">Friday, 4:00 PM</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="action-container">
+                            <div class="action-header" onclick="toggleAccordion(this)">
+                                <div style="display:flex; align-items:center; gap: 10px;">
+                                    <svg width="20" fill="none" stroke="var(--primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                    <span data-i18n="open_chats">Open Active Chats</span>
+                                </div>
+                                <svg class="chevron" width="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="action-body">
+                                <div class="list-item">
+                                    <span>Tech_Leader_Alias</span>
+                                    <span style="color: var(--accent)">Online</span>
+                                </div>
+                                <div class="list-item">
+                                    <span>Prof. Alan_Clone (AI)</span>
+                                    <span style="color: var(--accent)">Online</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-certs" class="tab-pane">
+                    <div class="cert-widget">
+                        <div class="cert-preview">
+                            <h2 data-i18n="cert_title">Certificate of Completion</h2>
+                            <p style="color: #64748b; margin-top: 1.5rem;" data-i18n="cert_awarded">This certifies that</p>
+                            <h3>Aanish Mukherjee</h3>
+                            <p style="color: #475569;" data-i18n="cert_desc">has successfully participated in the Orion Mentorship Module</p>
+                            
+                            <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+                                <div style="border-top: 1px solid #94a3b8; width: 120px; padding-top: 5px; font-size: 0.8rem;">System Auth</div>
+                                <div style="border-top: 1px solid #94a3b8; width: 120px; padding-top: 5px; font-size: 0.8rem;" id="current-date"></div>
+                            </div>
+                        </div>
+
+                        <div style="background: var(--bg-panel); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong data-i18n="module_progress">Module Progress</strong>
+                                <span style="color: var(--text-muted)">2/3 Sessions</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <button class="btn" style="width: 100%; margin-top: 1rem;" onclick="attemptClaim()" data-i18n="claim_btn">Claim Certificate</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tab-directory" class="tab-pane"><h2 data-i18n="find_mentors">Find Mentors</h2></div>
+                <div id="tab-events" class="tab-pane"><h2 data-i18n="events">Events</h2></div>
+                <div id="tab-calendar" class="tab-pane"><h2 data-i18n="calendar">Calendar</h2></div>
+                <div id="tab-chat" class="tab-pane"><h2 data-i18n="chats">Chats</h2></div>
+
+            </main>
+
+            <nav class="bottom-nav">
+                <div class="b-nav-item active" onclick="navigate('home')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    <span data-i18n="home">Home</span>
+                </div>
+                <div class="b-nav-item" onclick="navigate('events')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                    <span data-i18n="events">Events</span>
+                </div>
+                <div class="b-nav-item" onclick="navigate('certs')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    <span data-i18n="certs">Certs/VR</span>
+                </div>
+                <div class="b-nav-item" onclick="navigate('calendar')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span data-i18n="calendar">Calendar</span>
+                </div>
+                <div class="b-nav-item" onclick="navigate('chat')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    <span data-i18n="chats">Chats</span>
+                </div>
+            </nav>
+
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="alert-modal">
+        <div class="modal-content">
+            <svg class="modal-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <h3 style="margin-top:0;" data-i18n="modal_title">Action Required</h3>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;" data-i18n="modal_desc">You have to complete all the sessions to get this certificate.</p>
+            <button class="btn" onclick="closeModal()" style="width: 100%;" data-i18n="close">Understood</button>
+        </div>
+    </div>
+
+    <script>
+        // Set dynamic date on cert
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString();
+
+        // --- 1. Interactions ---
+        function showLoginForm() {
+            document.getElementById('role-selection').classList.add('hidden');
+            document.getElementById('login-form-container').classList.remove('hidden');
+        }
+
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            const nameField = document.getElementById('name-field');
+            const btn = document.getElementById('auth-submit-btn');
+            const isSignUp = tab === 'signup';
+            
+            if(isSignUp) {
+                nameField.classList.remove('hidden');
+                document.getElementById('fullname').required = true;
+                btn.setAttribute('data-i18n', 'signup');
+            } else {
+                nameField.classList.add('hidden');
+                document.getElementById('fullname').required = false;
+                btn.setAttribute('data-i18n', 'login');
+            }
+            updateTranslations(); // Re-run translation to catch dynamic button text
+        }
+
+        function handleAuth(e) {
+            e.preventDefault();
+            document.getElementById('auth-view').style.display = 'none';
+            document.getElementById('app-view').style.display = 'flex';
+        }
+
+        function logout() {
+            document.getElementById('app-view').style.display = 'none';
+            document.getElementById('auth-view').style.display = 'flex';
+            document.getElementById('role-selection').classList.remove('hidden');
+            document.getElementById('login-form-container').classList.add('hidden');
+            document.getElementById('auth-form').reset();
+            toggleSidebar();
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebar-overlay').classList.toggle('active');
+        }
+
+        function navigate(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.b-nav-item').forEach(el => el.classList.remove('active'));
+            
+            const targetPane = document.getElementById('tab-' + tabId);
+            if(targetPane) targetPane.classList.add('active');
+
+            const navItems = document.querySelectorAll('.b-nav-item');
+            const navMap = { 'home': 0, 'events': 1, 'certs': 2, 'calendar': 3, 'chat': 4 };
+            if(navMap[tabId] !== undefined) navItems[navMap[tabId]].classList.add('active');
+            
+            // Trigger translation update for the header title based on current active tab
+            document.getElementById('header-title').setAttribute('data-i18n', tabId === 'directory' ? 'find_mentors' : tabId);
+            updateTranslations();
+        }
+
+        // Dropdown Accordion Logic
+        function toggleAccordion(element) {
+            element.classList.toggle('open');
+        }
+
+        // Modal Logic
+        function attemptClaim() {
+            document.getElementById('alert-modal').style.display = 'flex';
+        }
+        function closeModal() {
+            document.getElementById('alert-modal').style.display = 'none';
+        }
+
+        // --- 2. Translation Engine ---
+        const dictionary = {
+            "en": {
+                "app_title": "Lumina Connect",
+                "auth_subtitle": "Secure Access & Verification",
+                "continue_student": "Continue as Student",
+                "continue_mentor": "Continue as Mentor",
+                "login": "Login",
+                "signup": "Sign Up",
+                "email_placeholder": "Email",
+                "password_placeholder": "Password",
+                "fullname_placeholder": "Full Name",
+                "dashboard": "Dashboard",
+                "verified_student": "KYC Verified Student",
+                "find_mentors": "Find Mentors (Clones)",
+                "certs": "Certs/VR",
+                "logout": "Secure Logout",
+                "active_mentors": "Active Mentors",
+                "upcoming_sessions": "Upcoming Sessions",
+                "reward_points": "Reward Points",
+                "quick_actions": "Quick Actions",
+                "view_scheduled": "View Scheduled Sessions",
+                "open_chats": "Open Active Chats",
+                "cert_title": "Certificate of Completion",
+                "cert_awarded": "This certifies that",
+                "cert_desc": "has successfully participated in the Orion Mentorship Module",
+                "module_progress": "Module Progress",
+                "claim_btn": "Claim Certificate",
+                "home": "Home",
+                "events": "Events",
+                "calendar": "Calendar",
+                "chats": "Chats",
+                "modal_title": "Action Required",
+                "modal_desc": "You have to complete all the sessions to get this certificate.",
+                "close": "Understood"
+            },
+            "ta": {
+                "app_title": "லூமினா கனெக்ட்",
+                "auth_subtitle": "பாதுகாப்பான அணுகல் மற்றும் சரிபார்ப்பு",
+                "continue_student": "மாணவராக தொடரவும்",
+                "continue_mentor": "வழிகாட்டியாக தொடரவும்",
+                "login": "உள்நுழைக",
+                "signup": "பதிவு செய்க",
+                "email_placeholder": "மின்னஞ்சல்",
+                "password_placeholder": "கடவுச்சொல்",
+                "fullname_placeholder": "முழு பெயர்",
+                "dashboard": "கட்டுப்பாட்டு அறை",
+                "verified_student": "KYC சரிபார்க்கப்பட்ட மாணவர்",
+                "find_mentors": "வழிகாட்டிகளைத் தேடு (நகல்கள்)",
+                "certs": "சான்றிதழ்கள்/VR",
+                "logout": "பாதுகாப்பான வெளியேற்றம்",
+                "active_mentors": "செயலில் உள்ள வழிகாட்டிகள்",
+                "upcoming_sessions": "வரவிருக்கும் அமர்வுகள்",
+                "reward_points": "வெகுமதி புள்ளிகள்",
+                "quick_actions": "விரைவான செயல்கள்",
+                "view_scheduled": "திட்டமிடப்பட்ட அமர்வுகளைக் காண்க",
+                "open_chats": "செயலில் உள்ள அரட்டைகளைத் திற",
+                "cert_title": "முடிப்புச் சான்றிதழ்",
+                "cert_awarded": "இதை சான்றளிக்கிறது",
+                "cert_desc": "ஓரியன் வழிகாட்டுதல் தொகுதியில் வெற்றிகரமாக பங்கேற்றுள்ளார்",
+                "module_progress": "தொகுதி முன்னேற்றம்",
+                "claim_btn": "சான்றிதழைப் பெறுங்கள்",
+                "home": "முகப்பு",
+                "events": "நிகழ்வுகள்",
+                "calendar": "நாள்காட்டி",
+                "chats": "அரட்டைகள்",
+                "modal_title": "செயல் தேவை",
+                "modal_desc": "இந்தச் சான்றிதழைப் பெற நீங்கள் அனைத்து அமர்வுகளையும் முடிக்க வேண்டும்.",
+                "close": "புரிந்தது"
+            },
+            "hi": {
+                "app_title": "ल्युमिना कनेक्ट",
+                "auth_subtitle": "सुरक्षित पहुँच और सत्यापन",
+                "continue_student": "छात्र के रूप में जारी रखें",
+                "continue_mentor": "मेंटर के रूप में जारी रखें",
+                "login": "लॉग इन",
+                "signup": "साइन अप",
+                "email_placeholder": "ईमेल",
+                "password_placeholder": "पासवर्ड",
+                "fullname_placeholder": "पूरा नाम",
+                "dashboard": "डैशबोर्ड",
+                "verified_student": "KYC सत्यापित छात्र",
+                "find_mentors": "मेंटर खोजें (क्लोन)",
+                "certs": "प्रमाणपत्र/VR",
+                "logout": "सुरक्षित लॉगआउट",
+                "active_mentors": "सक्रिय मेंटर्स",
+                "upcoming_sessions": "आगामी सत्र",
+                "reward_points": "रिवार्ड पॉइंट",
+                "quick_actions": "त्वरित कार्रवाइयां",
+                "view_scheduled": "निर्धारित सत्र देखें",
+                "open_chats": "सक्रिय चैट खोलें",
+                "cert_title": "पूर्णता का प्रमाण पत्र",
+                "cert_awarded": "यह प्रमाणित करता है कि",
+                "cert_desc": "ने ओरियन मेंटरशिप मॉड्यूल में सफलतापूर्वक भाग लिया है",
+                "module_progress": "मॉड्यूल प्रगति",
+                "claim_btn": "प्रमाणपत्र का दावा करें",
+                "home": "होम",
+                "events": "कार्यक्रम",
+                "calendar": "कैलेंडर",
+                "chats": "चैट",
+                "modal_title": "कार्रवाई की आवश्यकता",
+                "modal_desc": "यह प्रमाणपत्र प्राप्त करने के लिए आपको सभी सत्र पूरे करने होंगे।",
+                "close": "समझ गया"
+            },
+            "te": {
+                "app_title": "ల్యూమినా కనెక్ట్",
+                "auth_subtitle": "సురక్షిత యాక్సెస్ మరియు ధృవీకరణ",
+                "continue_student": "విద్యార్థిగా కొనసాగండి",
+                "continue_mentor": "మెంటార్‌గా కొనసాగండి",
+                "login": "లాగిన్",
+                "signup": "సైన్ అప్",
+                "email_placeholder": "ఇమెయిల్",
+                "password_placeholder": "పాస్వర్డ్",
+                "fullname_placeholder": "పూర్తి పేరు",
+                "dashboard": "డాష్‌బోర్డ్",
+                "verified_student": "KYC ధృవీకరించబడిన విద్యార్థి",
+                "find_mentors": "మెంటార్లను కనుగొనండి (క్లోన్లు)",
+                "certs": "సర్టిఫికెట్లు/VR",
+                "logout": "సురక్షిత లాగౌట్",
+                "active_mentors": "క్రియాశీల మెంటార్లు",
+                "upcoming_sessions": "రాబోయే సెషన్‌లు",
+                "reward_points": "రివార్డ్ పాయింట్లు",
+                "quick_actions": "త్వరిత చర్యలు",
+                "view_scheduled": "షెడ్యూల్ చేసిన సెషన్‌లను వీక్షించండి",
+                "open_chats": "క్రియాశీల చాట్‌లను తెరవండి",
+                "cert_title": "పూర్తి చేసిన సర్టిఫికెట్",
+                "cert_awarded": "ఇది ధృవీకరిస్తుంది",
+                "cert_desc": "ఓరియన్ మెంటార్‌షిప్ మాడ్యూల్‌లో విజయవంతంగా పాల్గొన్నారు",
+                "module_progress": "మాడ్యూల్ పురోగతి",
+                "claim_btn": "సర్టిఫికేట్ పొందండి",
+                "home": "హోమ్",
+                "events": "ఈవెంట్స్",
+                "calendar": "క్యాలెండర్",
+                "chats": "చాట్‌లు",
+                "modal_title": "చర్య అవసరం",
+                "modal_desc": "ఈ సర్టిఫికేట్ పొందడానికి మీరు అన్ని సెషన్లను పూర్తి చేయాలి.",
+                "close": "అర్థమైంది"
+            }
+        };
+
+        function changeLanguage() {
+            updateTranslations();
+        }
+
+        function updateTranslations() {
+            const lang = document.getElementById('lang-select').value;
+            const dict = dictionary[lang];
+
+            // Update InnerText
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (dict[key]) {
+                    el.innerText = dict[key];
+                }
+            });
+
+            // Update Placeholders
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (dict[key]) {
+                    el.placeholder = dict[key];
+                }
+            });
+        }
+        
+        // Initialize language
+        updateTranslations();
+    </script>
+</body>
+</html>
